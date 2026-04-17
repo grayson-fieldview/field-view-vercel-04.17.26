@@ -1,0 +1,145 @@
+import { Switch, Route, Redirect } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/hooks/use-auth";
+import { Skeleton } from "@/components/ui/skeleton";
+import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
+import SubscribePage from "@/pages/subscribe";
+import DashboardPage from "@/pages/dashboard";
+import ProjectsPage from "@/pages/projects";
+import ProjectDetailPage from "@/pages/project-detail";
+import PhotosPage from "@/pages/photos";
+import MapPage from "@/pages/map";
+import TeamPage from "@/pages/team";
+import SettingsPage from "@/pages/settings";
+import ChecklistsPage from "@/pages/checklists";
+import ReportsPage from "@/pages/reports";
+import GalleryPage from "@/pages/gallery";
+import TasksPage from "@/pages/tasks";
+import AnalyticsPage from "@/pages/analytics";
+import CalendarPage from "@/pages/calendar";
+
+function AuthenticatedLayout() {
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full overflow-x-hidden">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
+          <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b bg-background">
+            <SidebarTrigger data-testid="button-mobile-menu" />
+            <span className="text-sm font-medium text-foreground">Field View</span>
+          </div>
+          <main className="flex-1 overflow-auto">
+            <Switch>
+              <Route path="/" component={DashboardPage} />
+              <Route path="/login"><Redirect to="/" /></Route>
+              <Route path="/register"><Redirect to="/" /></Route>
+              <Route path="/forgot-password"><Redirect to="/" /></Route>
+              <Route path="/reset-password" component={ResetPasswordPage} />
+              <Route path="/projects" component={ProjectsPage} />
+              <Route path="/projects/:id">
+                {(params) => <ProjectDetailPage id={params.id} />}
+              </Route>
+              <Route path="/tasks" component={TasksPage} />
+              <Route path="/photos" component={PhotosPage} />
+              <Route path="/checklists" component={ChecklistsPage} />
+              <Route path="/reports" component={ReportsPage} />
+              <Route path="/analytics" component={AnalyticsPage} />
+              <Route path="/calendar" component={CalendarPage} />
+              <Route path="/map" component={MapPage} />
+              <Route path="/team" component={TeamPage} />
+              <Route path="/settings" component={SettingsPage} />
+              <Route component={NotFound} />
+            </Switch>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function SubscriptionGate() {
+  const { user } = useAuth();
+
+  if (!user) return null;
+
+  const status = user.subscriptionStatus;
+  const trialEndsAt = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const trialExpired = trialEndsAt && trialEndsAt < new Date();
+
+  if (status === "active" || status === "trialing" || (status === "trial" && !trialExpired)) {
+    return <AuthenticatedLayout />;
+  }
+
+  return <SubscribePage />;
+}
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Skeleton className="h-12 w-12 rounded-md" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-48" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Switch>
+        <Route path="/login" component={LoginPage} />
+        <Route path="/register" component={RegisterPage} />
+        <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route>
+          <LandingPage />
+        </Route>
+      </Switch>
+    );
+  }
+
+  return <SubscriptionGate />;
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Switch>
+            <Route path="/gallery/:token">
+              {(params) => <GalleryPage token={params.token} />}
+            </Route>
+            <Route>
+              <AppContent />
+            </Route>
+          </Switch>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;
